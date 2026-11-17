@@ -43,7 +43,7 @@ func (t *hostRewriteTransport) RoundTrip(req *http.Request) (*http.Response, err
 var redisSessions *RedisSessionsManager // управляет сессиями в Redis
 var oidcProvider rp.RelyingParty        // OIDC провайдер
 var oidcHttpClient *http.Client         // HTTP-клиент для внутренних запросов к Keycloak
-var resourceUrl *url.URL                // URI ресурсного сервиса
+var reportsUrl *url.URL                 // URI сервиса отчётов
 var frontendUrl string                  // URI фронтенда
 
 func main() {
@@ -68,7 +68,7 @@ func main() {
 		time.Duration(defaultSessionTtl)*time.Minute,
 	)
 	oidcProvider = initOIDCProvider(encryptionKey)
-	resourceUrl, _ = url.Parse(readEnvVarOrPanic("RESOURCE_URL"))
+	reportsUrl, _ = url.Parse(readEnvVarOrPanic("REPORTS_URL"))
 	frontendUrl = readEnvVarOrPanic("FRONTEND_URL")
 
 	// статус аутентификации
@@ -83,16 +83,17 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 	})
 
-	// остальные вызовы проксируем
-	proxy := &httputil.ReverseProxy{Rewrite: func(req *httputil.ProxyRequest) {
-		// при обращении к внутреннему сервису добавляем в заголовок access token
-		req.SetURL(resourceUrl)
-		token, ok := req.In.Context().Value("access_token").(string)
-		if ok {
-			req.Out.Header.Set("Authorization", "Bearer "+token)
-		}
-	}}
-	http.Handle("/", authMiddleware(proxy))
+	// отчёт
+	reportsProxy := authMiddleware(createReverseProxy(reportsUrl))
+	http.Handle("/reports/", reportsProxy)
+	http.Handle("/reports", reportsProxy)
+
+	// прочее
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Not Found", "message": "Ресурс не найден"})
+	})
 
 	// запускаем сервер
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -266,6 +267,20 @@ func authMiddleware(next http.Handler) http.Handler {
 		// выполняем след шаг
 		next.ServeHTTP(w, req.WithContext(ctx))
 	})
+}
+
+func createReverseProxy(resourceUrl *url.URL) *httputil.ReverseProxy {
+	return &httputil.ReverseProxy{
+		Rewrite: func(req *httputil.ProxyRequest) {
+			// при обращении к внутреннему сервису добавляем в заголовок access token
+			req.SetURL(resourceUrl)
+			req.SetXForwarded()
+			token, ok := req.In.Context().Value("access_token").(string)
+			if ok {
+				req.Out.Header.Set("Authorization", "Bearer "+token)
+			}
+		},
+	}
 }
 
 func getOrRefreshToken(ctx context.Context, curSessionId string, newSessionId string) (*oauth2.Token, error) {

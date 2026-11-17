@@ -487,20 +487,13 @@
     "emailVerified" : false,
     "enabled" : true,
     "createdTimestamp" : 1794722225849,
-    "totp" : true,
+    "totp" : false,
     "credentials" : [ {
       "id" : "fccf80be-60be-4d76-82c6-3c021b48be17",
       "type" : "password",
       "createdDate" : 1794709800133,
-      "secretData" : "{\"value\":\"C7yhl8hIuHDyHVs+4dl0wToTZ499+2kumAZxrpoPgKs=\",\"salt\":\"2f3hELHr2R6X4B67DRBerg==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    }, {
-      "id" : "6f43aeeb-2a13-4247-93de-8c899e15d8f0",
-      "type" : "otp",
-      "userLabel" : "br",
-      "createdDate" : 1794711751643,
-      "secretData" : "{\"value\":\"tyu4R69k5DKfOLp4Vw70\"}",
-      "credentialData" : "{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"
+      "secretData" : "{\"value\":\"mPSBvY7tLC398IbhOdhShAA0jI85EjKCUVdH4SEKq00=\",\"salt\":\"p2QkbWn+vyRRw1+B9er4Pg==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
@@ -543,12 +536,18 @@
       "id" : "bdf44685-3408-4c93-b1de-db046745b5a0",
       "type" : "password",
       "createdDate" : 1794709799968,
-      "secretData" : "{\"value\":\"5SlZBaz+AGORoykh00uMN1fr4sXRlOh62erBtmdBgkY=\",\"salt\":\"UWxkl8IR/Pr5VKlIiu1mAg==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+      "secretData" : "{\"value\":\"NN185AWV2zSyjeGh37SYnXhfPHOegEw1TZcXiCRmaEM=\",\"salt\":\"aDNpqS5jxlpP7mUCTes0vw==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "user" ],
+    "clientConsents" : [ {
+      "clientId" : "bionicpro-auth",
+      "grantedClientScopes" : [ "roles", "email", "profile" ],
+      "createdDate" : 1794788238178,
+      "lastUpdatedDate" : 1794788238209
+    } ],
     "notBefore" : 0,
     "groups" : [ ]
   }, {
@@ -577,7 +576,7 @@
   "federatedUsers" : [ {
     "id" : "f:c8a91efc-c868-403c-851c-db7b16aa704c:john.doe",
     "attributes" : {
-      "fedNotBefore" : [ "0", "0" ]
+      "fedNotBefore" : [ "0", "0", "0" ]
     },
     "credentials" : [ {
       "id" : "eca6320a-c99c-454c-b118-a861e4fe8b07",
@@ -739,6 +738,20 @@
     "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : true,
     "nodeReRegistrationTimeout" : -1,
+    "protocolMappers" : [ {
+      "id" : "d12e1e42-7b35-4a19-a0eb-8687660cc528",
+      "name" : "reports-api-audience",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-audience-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "id.token.claim" : "false",
+        "lightweight.claim" : "false",
+        "access.token.claim" : "true",
+        "introspection.token.claim" : "true",
+        "included.custom.audience" : "reports-api"
+      }
+    } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "basic", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
   }, {
@@ -1541,7 +1554,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "oidc-address-mapper", "saml-role-list-mapper", "oidc-usermodel-attribute-mapper", "saml-user-attribute-mapper", "oidc-usermodel-property-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "saml-role-list-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "saml-user-property-mapper", "oidc-full-name-mapper" ]
       }
     }, {
       "id" : "1bb99029-6a98-4309-9774-5c96cf1c7611",
@@ -1573,7 +1586,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper", "oidc-usermodel-attribute-mapper", "oidc-address-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-full-name-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-full-name-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "saml-role-list-mapper" ]
       }
     }, {
       "id" : "11b76af7-c9cb-4816-8c25-6f7cf5df33dd",
@@ -1660,8 +1673,8 @@
           "config" : {
             "ldap.attribute" : [ "createTimestamp" ],
             "is.mandatory.in.ldap" : [ "false" ],
-            "always.read.value.from.ldap" : [ "true" ],
             "read.only" : [ "true" ],
+            "always.read.value.from.ldap" : [ "true" ],
             "user.model.attribute" : [ "createTimestamp" ]
           }
         }, {
@@ -1672,8 +1685,8 @@
           "config" : {
             "ldap.attribute" : [ "uid" ],
             "is.mandatory.in.ldap" : [ "true" ],
-            "always.read.value.from.ldap" : [ "false" ],
             "read.only" : [ "true" ],
+            "always.read.value.from.ldap" : [ "false" ],
             "user.model.attribute" : [ "username" ]
           }
         }, {
@@ -1684,8 +1697,8 @@
           "config" : {
             "ldap.attribute" : [ "mail" ],
             "is.mandatory.in.ldap" : [ "false" ],
-            "always.read.value.from.ldap" : [ "false" ],
             "read.only" : [ "true" ],
+            "always.read.value.from.ldap" : [ "false" ],
             "user.model.attribute" : [ "email" ]
           }
         }, {
@@ -1718,8 +1731,8 @@
         "importEnabled" : [ "false" ],
         "enabled" : [ "true" ],
         "changedSyncPeriod" : [ "-1" ],
-        "usernameLDAPAttribute" : [ "uid" ],
         "bindCredential" : [ "admin_password" ],
+        "usernameLDAPAttribute" : [ "uid" ],
         "bindDn" : [ "cn=admin,dc=example,dc=com" ],
         "vendor" : [ "other" ],
         "uuidLDAPAttribute" : [ "entryUUID" ],
