@@ -1,0 +1,9 @@
+Dockerfile*
+.dockerignore
+
+**/.vs/
+**/.vscode/
+**/bin/
+**/obj/
+*.user
+*.suo
