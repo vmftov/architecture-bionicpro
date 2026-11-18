@@ -1,57 +1,29 @@
-﻿using ClickHouse.Driver.ADO;
-using ClickHouse.Driver.Utility;
-using ReportsApi.Models;
-using ReportsApi.Utils;
-using System.Data;
-
-namespace ReportsApi.Repositories;
+﻿namespace ReportsApi.Repositories;
 
 public class ReportRepository {
-    private readonly ClickhouseConStringBuilder _conStringBuilder;
+    private readonly S3ReportStore _s3;
+    private readonly ClickhouseReportStore _clickhouse;
 
-    public ReportRepository(ClickhouseConStringBuilder conStringBuilder) {
-        _conStringBuilder = conStringBuilder ?? throw new ArgumentNullException(nameof(conStringBuilder));
+    public ReportRepository(S3ReportStore s3, ClickhouseReportStore clickhouse) {
+        _s3 = s3 ?? throw new ArgumentNullException(nameof(s3));
+        _clickhouse = clickhouse ?? throw new ArgumentNullException(nameof(clickhouse));
     }
 
-    public async Task<Report> GetActualReportAsync(string ownerId, DateTimeOffset date) {
-        await using var connection = new ClickHouseConnection(_conStringBuilder.ConnectionString);
-        await connection.OpenAsync();
+    public async Task<string?> GetReportUriAsync(string ownerId, DateTimeOffset date) {
+        // распределённая блокировка здесь будет излишней, т.к.
+        // за одним и тем же отчётом будет обращаться только один
+        // пользователь и он не сможет создать высокую конкурентную нагрузку
 
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT prosthesis_id, prosthesis_type, prosthesis_description, daily_avg_response_time_ms, daily_error_count, daily_bending_count FROM user_reports FINAL WHERE owner_id = {owner_id:String} AND report_date = {report_date:Date} ORDER BY report_date";
-        command.AddParameter("report_date", date);
-        command.AddParameter("owner_id", ownerId);
-
-        var report = new Report {
-            Date = date
-        };
-
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) {
-            report.Prostheses.Add(new ReportProsthesis {
-                Id = (int) reader.GetFieldValue<uint>("prosthesis_id"),
-                Type = reader.GetString("prosthesis_type"),
-                Description = reader.GetString("prosthesis_description"),
-                Stats = {
-                    new ReportProsthesisStat {
-                        Code = "daily_avg_response_time_ms",
-                        Name = "Среднее время отклика за сутки, мс",
-                        Value = reader.GetFieldValue<float>("daily_avg_response_time_ms").ToString("F3")
-                    },
-                    new ReportProsthesisStat {
-                        Code = "daily_bending_count",
-                        Name = "Количество операций сгибания/разгибания за сутки",
-                        Value = reader.GetFieldValue<uint>("daily_bending_count").ToString()
-                    },
-                    new ReportProsthesisStat {
-                        Code = "daily_error_count",
-                        Name = "Количество ошибок в работе за сутки",
-                        Value = reader.GetFieldValue<uint>("daily_error_count").ToString()
-                    }
-                }
-            });
+        var objectKey = _s3.CalcObjectKey(ownerId, date);
+        var reportExists = await _s3.ReportExistsAsync(objectKey);
+        if (reportExists) {
+            return await _s3.GetReportDailyStableUriAsync(objectKey);
         }
-
-        return report;
+        var report = await _clickhouse.GetReportAsync(ownerId, date);
+        if (report.Prostheses.Count == 0) {
+            return null;
+        }
+        await _s3.PutReportAsync(objectKey, report);
+        return await _s3.GetReportDailyStableUriAsync(objectKey);
     }
 }

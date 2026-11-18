@@ -24,7 +24,7 @@ const ReportPage: React.FC = () => {
       }
 
       const data = await response.json();
-      downloadJsonFile(data);
+      downloadJsonFile(data.uri);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -88,14 +88,12 @@ const ReportPage: React.FC = () => {
 
 export default ReportPage;
 
-function downloadJsonFile(data: unknown){
-  const obj = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json;charset=utf-8' })  
-  const url = window.URL.createObjectURL(obj);
+function downloadJsonFile(uri: string){
   const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', 'report.json');
+  link.href = uri;
+  link.download = 'report.json';
+  link.rel = 'noopener';
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => window.URL.revokeObjectURL(url), 200);
 }
