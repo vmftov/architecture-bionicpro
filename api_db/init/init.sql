@@ -10,3 +10,6 @@ CREATE TABLE IF NOT EXISTS public.prosthesis_telemetry (
 
 CREATE INDEX IF NOT EXISTS idx__prosthesis_telemetry__telemetry_time__telemetry_type__prosthesis_id 
 ON public.prosthesis_telemetry (telemetry_time, telemetry_type, prosthesis_id);
+
+-- фиктивные данные добавляются прямо в DWH-пайплайне
+ 

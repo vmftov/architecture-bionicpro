@@ -99,13 +99,7 @@ def combine_and_save_to_clickhouse(**context):
         logger.warning(f"На дату '{start_date}' не сформировано ни одного отчёта")
         return
 
-    client = Client(
-        host=os.getenv('CLICKHOUSE_HOST', 'clickhouse'),
-        port=int(os.getenv('CLICKHOUSE_PORT', '9000')),
-        user=os.getenv('CLICKHOUSE_USER', 'default'),
-        password=os.getenv('CLICKHOUSE_PASSWORD', 'default_password'),
-        database=os.getenv('CLICKHOUSE_DB', 'reports_db'),
-    )
+    client = create_clickhouse_client()
     try:
         client.execute(
             """
@@ -120,6 +114,51 @@ def combine_and_save_to_clickhouse(**context):
         client.disconnect()
 
 
+def save_telemetry_to_clickhouse(**context):
+    """Сохраняет сгруппированную телеметрию в Clickhouse."""
+
+    task_instance = context['ti']
+    telemetry_rows = task_instance.xcom_pull(task_ids='fetch_and_group_telemetry_data') or []
+    start_date = context["data_interval_start"].date()
+
+    if len(telemetry_rows) == 0:
+        logger.warning(f"На дату '{start_date}' не сформировано ни одного отчёта")
+        return
+
+    report_rows = []
+    for prosthesis_id, avg_response_time_ms, error_count, bending_count in telemetry_rows:
+        report_rows.append((
+            start_date,
+            prosthesis_id,
+            float(avg_response_time_ms),
+            int(error_count),
+            int(bending_count),
+        ))
+
+    client = create_clickhouse_client()
+    try:
+        client.execute(
+            """
+            INSERT INTO reports_db.grouped_telemetry
+            (report_date, prosthesis_id, daily_avg_response_time_ms, daily_error_count, daily_bending_count)
+            VALUES
+            """,
+            report_rows,
+        )
+    finally:
+        client.disconnect()
+
+
+def create_clickhouse_client():
+    return Client(
+        host=os.getenv('CLICKHOUSE_HOST', 'clickhouse'),
+        port=int(os.getenv('CLICKHOUSE_PORT', '9000')),
+        user=os.getenv('CLICKHOUSE_USER', 'default'),
+        password=os.getenv('CLICKHOUSE_PASSWORD', 'default_password'),
+        database=os.getenv('CLICKHOUSE_DB', 'reports_db'),
+    )
+
+
 # Определяем DAG
 with DAG('create_clickhouse_report',
          description="Создание отчёта в Clickhouse",
@@ -128,13 +167,21 @@ with DAG('create_clickhouse_report',
          is_paused_upon_creation=False,  # сразу запускаем
          catchup=True) as dag:  # True, чтобы проверить работоспособность
 
+    # в проде можно чуть подождать, чтобы отстающие данные телеметрии успели прийти и записаться в БД
+    # wait_all_telemetry_data_task = TimeDeltaSensor(
+    #     task_id='wait_all_telemetry_data',
+    #     delta=timedelta(minutes=15),
+    #     mode='reschedule',
+    #     poke_interval=60
+    # )
+
     # Добавляет рандомные значения телеметрии за предыдущий день эмулируя реальное появление данных
     generate_fake_telemetry_task = PythonOperator(
         task_id='generate_fake_telemetry_data',
         python_callable=generate_fake_telemetry_data
     )
 
-    # Достает и группирует данные из БД телеметрии за предыдущий день
+    # Задания 2 и 4- Достает и группирует данные из БД телеметрии за предыдущий день
     telemetry_data = PostgresOperator(
         task_id="fetch_and_group_telemetry_data",
         postgres_conn_id="api_db_postgres_con",
@@ -150,7 +197,7 @@ with DAG('create_clickhouse_report',
         do_xcom_push=True
     )
 
-    # Достает данные из БД CRM
+    # Задание 2 - Достает данные из БД CRM
     crm_data = PostgresOperator(
         task_id='fetch_crm_data',
         postgres_conn_id="crm_db_postgres_con",
@@ -161,12 +208,19 @@ with DAG('create_clickhouse_report',
         do_xcom_push=True
     )
 
-    # Дообогащает данные телеметрии данными из CRM и сохраняет в Clickhouse
+    # Задание 4 - Сохраняет сгруппированную телеметрию в Clickhouse
+    save_telemetry_to_clickhouse_task = PythonOperator(
+        task_id='save_telemetry_to_clickhouse',
+        python_callable=save_telemetry_to_clickhouse
+    )
+
+    # Задание 2 - Дообогащает данные телеметрии данными из CRM и сохраняет в Clickhouse
     combine_and_save_to_clickhouse_task = PythonOperator(
         task_id='combine_and_save_to_clickhouse',
         python_callable=combine_and_save_to_clickhouse
     )
 
     generate_fake_telemetry_task >> [telemetry_data, crm_data] >> combine_and_save_to_clickhouse_task
+    telemetry_data >> save_telemetry_to_clickhouse_task
 
     # Тут дальше можно продолжать пайплайн

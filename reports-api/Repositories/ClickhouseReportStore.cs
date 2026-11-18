@@ -18,7 +18,7 @@ public class ClickhouseReportStore {
         await connection.OpenAsync();
 
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT prosthesis_id, prosthesis_type, prosthesis_description, daily_avg_response_time_ms, daily_error_count, daily_bending_count FROM user_reports FINAL WHERE owner_id = {owner_id:String} AND report_date = {report_date:Date} ORDER BY report_date";
+        command.CommandText = "SELECT prosthesis_id, prosthesis_type, prosthesis_description, daily_avg_response_time_ms, daily_error_count, daily_bending_count FROM user_reports_4 FINAL WHERE owner_id = {owner_id:String} AND report_date = {report_date:Date} ORDER BY report_date";
         command.AddParameter("report_date", date);
         command.AddParameter("owner_id", ownerId);
 

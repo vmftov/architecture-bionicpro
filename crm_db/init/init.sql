@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS public.orders (
     price NUMERIC(18, 2) NOT NULL
 );
 
+-- настройки для Debezium
+ALTER TABLE public.orders REPLICA IDENTITY FULL; -- чтобы при удалении Debezium видел все поля 
+CREATE ROLE debezium WITH LOGIN REPLICATION PASSWORD 'debezium';
+GRANT USAGE ON SCHEMA public TO debezium;
+GRANT SELECT ON TABLE public.orders TO debezium;
+CREATE PUBLICATION crm_publication FOR TABLE public.orders;
+
+--
 INSERT INTO public.orders 
 (id, order_number, buyer_id,                                          prosthesis_id, prosthesis_type, prosthesis_description, price) 
 VALUES
